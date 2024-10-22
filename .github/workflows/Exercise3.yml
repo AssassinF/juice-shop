@@ -1,0 +1,28 @@
+name: Gitleaks Docker Image is used
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    name: Gitleaks Scan
+    container:
+      image: zricethezav/gitleaks
+
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4.2.1
+
+      - name: Gitleak Run Scan
+        run:  _________??????_______
+        continue-on-error: true
+
+      - name: Upload Gitleak Output file
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleak-report
+          path: gitleaks-report.json
+
