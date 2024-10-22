@@ -1,0 +1,98 @@
+name: DevSecOps Workflow
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+jobs:
+  njsscan:
+    runs-on: ubuntu-latest
+    name: njsscan code scanning
+    steps:
+
+    - name: Checkout the code
+      uses: actions/checkout@v4.2.1
+
+    - name: nodejsscan scan
+      id: njsscan
+      uses: ajinabraham/njsscan-action@v7
+      with:
+        args: '. --sarif --output results.sarif || true'
+
+    - name: Upload njsscan report
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: results.sarif
+
+  semgrep:
+    runs-on: ubuntu-latest
+    name: Semgrep Scan
+    steps:
+      - name: Checkout the Code
+        uses: actions/checkout@v4.2.1
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Semgrep Scan
+        run: semgrep scan --output=semgrep.sarif --sarif
+        continue-on-error: true
+
+      - name: Upload Semgrep Report
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  npm-audit-scan:
+    runs-on: ubuntu-latest
+    name: NPM Audit Scan
+    needs: [njsscan, semgrep]
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4.2.1
+
+      - name: Install and Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: NPM Audit
+        run: npm audit --json >> npm-audit-output.json
+        continue-on-error: true
+
+      - name: Upload the NPM Audit output file
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-output-file
+          path: npm-audit-output.json
+
+  retire-scan:
+    runs-on: ubuntu-latest
+    name: Retire.js Scan
+    needs: [npm-audit-scan]
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4.2.1
+
+      - name: Install and Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm install -g retire
+
+      - name: Retire.js Scan
+        run: retire --output json --outputFile retire-output.json
+        continue-on-error: true
+
+      - name: Upload the Retire.js output file
+        uses: actions/upload-artifact@v4
+        with:
+          name: retire-output-file
+          path: retire-output.json
